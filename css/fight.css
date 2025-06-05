@@ -1,0 +1,193 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif, sans-serif;
+}
+
+body {
+  background-color: #add8e6; /* Голубой фон */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 40px 20px; /* Внешние отступы */
+}
+
+.container {
+  max-width: 1200px;
+  width: 100%;
+  border: 1px solid #28a745; /* Тонкая зелёная рамка */
+  display: flex;
+  gap: 30px; /* Расстояние между колонками */
+  padding: 40px; /* Внутренний отступ */
+  background-color: white;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05); /* Лёгкая тень */
+}
+
+.column {
+  flex: 1;
+  padding: 30px; /* Увеличенные внутренние отступы */
+  display: flex;
+  flex-direction: column;
+  gap: 25px; /* Больше вертикального расстояния между элементами */
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  position: relative; /* Для позиционирования .stats */
+}
+
+.left-column,
+.right-column {
+  background-color: #f0f0f0; /* Светло-серый фон */
+}
+
+h2 {
+  text-align: center;
+  font-size: 18px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 5px;
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.team-name-input {
+  padding: 8px;
+  font-size: 16px;
+  width: 100%;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.members-list {
+  list-style-type: none;
+  padding: 0;
+  flex-grow: 1;
+  overflow-y: auto;
+}
+
+.members-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 5px;
+  padding: 8px;
+  background-color: #fff;
+  border-radius: 5px;
+  border: 1px solid #ddd;
+}
+
+.members-list span {
+  font-size: 16px;
+}
+
+.status-button {
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.status-button.active {
+  background-color: green;
+}
+
+.status-button.inactive {
+  background-color: red;
+}
+
+
+/* === Блок статистики: прижат к левому нижнему углу === */
+.stats {
+  position: absolute;
+  bottom: 30px;
+  left: 30px;
+  font-size: 16px;
+}
+
+.stats p {
+  margin-bottom: 5px;
+}
+
+/* === Центральная колонка === */
+.center-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.battle-field {
+  width: 100%;
+  height: 400px;
+  background-color: #8b5a2b; /* Коричневое игровое поле */
+  border-radius: 10px;
+}
+
+/* === Информационная панель слева от кнопки === */
+.info-panel {
+  text-align: left;
+  font-size: 18px;
+  width: 100%;
+  max-width: 300px;
+}
+
+.start-button {
+  padding: 15px;
+  font-size: 20px;
+  background-color: red;
+  color: white;
+  border: none;
+  width: 100%;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.start-button:hover {
+  background-color: darkred;
+}
+.button-group {
+  display: flex;
+  gap: 15px;
+  width: 100%;
+  max-width: 300px;
+}
+
+.status-btn {
+  flex: 1;
+  padding: 12px;
+  font-size: 16px;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.status-btn.dead {
+  background-color: red;
+}
+
+.status-btn.dead:hover {
+  background-color: darkred;
+}
+
+.status-btn.alive {
+  background-color: green;
+}
+
+.status-btn.alive:hover {
+  background-color: darkgreen;
+}
+
+#team-name-1 {
+  background-color: #ff4d4d;
+}
+
+#team-name-2 {
+  background-color: #4d77ff;
+}
+

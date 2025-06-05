@@ -1,0 +1,46 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: #add8e6; /* Голубой фон */
+    font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif, sans-serif;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+.container {
+    padding: 20px;
+}
+
+.logo {
+    width: 300px; /* Было 150px, теперь 300px */
+    height: auto;
+    margin-bottom: 20px;
+}   
+
+h1 {
+    font-size: 24px;
+    color: #fffefe;
+    margin-bottom: 30px;
+}
+
+.btn {
+    background-color: #28a745; /* Зелёный цвет */
+    color: white;
+    padding: 15px 30px;
+    font-size: 18px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.btn:hover {
+    background-color: #218838;
+}

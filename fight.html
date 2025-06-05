@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>БОЙ</title>
+  <link rel="stylesheet" href="css/fight.css">
+  <script src="js/fight.js"></script>
+</head>
+<body>
+
+  <div class="container">
+
+    <!-- Левая колонка -->
+    <div class="column left-column">
+      <h2 id="team-name-1">1 команда</h2>
+      <input type="text" class="team-name-input" placeholder="Название команды">
+
+      <ul class="members-list">
+        <li>
+          <span>1.</span>
+          <span>ряд. Иванов И.И.</span>
+          <button class="status-button active"></button>
+        </li>
+        <li>
+          <span>2.</span>
+          <span>ряд. Петров П.П.</span>
+          <button class="status-button inactive"></button>
+        </li>
+      </ul>
+
+      <div class="stats">
+        <p>В строю: <span>...</span></p>
+        <p>Убиты: <span>...</span></p>
+      </div>
+    </div>
+
+    <!-- Центральная колонка -->
+    <div class="column center-column">
+      <div class="battle-field">
+        <!-- Здесь будет игровое поле -->
+      </div>
+
+      <div class="info-panel">
+        <p>Команда: <span>...</span></p>
+        <p>Номер: <span>...</span></p>
+      </div>
+
+      <!-- Две кнопки вместо одной -->
+      <div class="button-group">
+        <button class="status-btn dead">Убит</button>
+        <button class="status-btn alive">В строю</button>
+      </div>
+    </div>
+
+    <!-- Правая колонка -->
+    <div class="column right-column">
+      <h2 id="team-name-2">2 команда</h2>
+      <input type="text" class="team-name-input" placeholder="Название команды">
+
+      <ul class="members-list">
+        <li>
+          <span>1.</span>
+          <span>ряд. Андреев А.А.</span>
+          <button class="status-button active"></button>
+        </li>
+        <li>
+          <span>2.</span>
+          <span>ряд. Дмитров Д.Д.</span>
+          <button class="status-button active"></button>
+        </li>
+      </ul>
+
+      <div class="stats">
+        <p>В строю: <span>...</span></p>
+        <p>Убиты: <span>...</span></p>
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>
