@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Настройка</title>
+  <link rel="stylesheet" href="/static/css/start.css">
+</head>
+<body>
+
+  <div class="container">
+
+    <!-- Левая колонка -->
+    <div class="column">
+      <h2>1 команда</h2>
+      <input type="text" class="team-name-input" placeholder="Название команды">
+
+      <div class="controls">
+        <button class="btn-team add-member">+</button>
+        <span>Количество человек: <span class="member-count">0</span></span>
+        <button class="btn-team remove-member">−</button>
+      </div>
+
+      <ul class="members-list"></ul>
+    </div>
+
+    <!-- Центральная колонка -->
+    <div class="column center-column">
+      <h2>1 команда</h2>
+      <div class="team-settings">
+        <label>Количество человек:</label>
+        <div id="players1">0</div>
+      </div>
+
+      <h2>2 команда</h2>
+      <div class="team-settings">
+        <label>Количество человек:</label>
+        <div id="players2">0</div>
+      </div>
+
+      <button class="start-button">БОЙ</button>
+    </div>
+
+    <!-- Правая колонка -->
+    <div class="column">
+      <h2>2 команда</h2>
+      <input type="text" class="team-name-input" placeholder="Название команды">
+
+      <div class="controls">
+        <button class="btn-team add-member">+</button>
+        <span>Количество человек: <span class="member-count">0</span></span>
+        <button class="btn-team remove-member">−</button>
+      </div>
+
+      <ul class="members-list"></ul>
+    </div>
+  </div>
+
+  <script src="/static/js/start.js"></script>
+</body>
+</html>

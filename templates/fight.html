@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>БОЙ</title>
+  <link rel="stylesheet" href="/static/css/fight.css">
+</head>
+<body>
+  <div class="container">
+
+    <!-- Левая колонка -->
+    <div class="column left-column">
+      <h2 id="team-name-1">{{ team1 }}</h2>
+
+      <ul class="members-list">
+        {% if members1 %}
+          {% for member in members1 %}
+            <li>
+              <span>{{ loop.index }}.</span>
+              <span>{{ member.rank or 'в/з' }} {{ member.name or 'ФИО' }}</span>
+              <button class="status-button active"></button>
+            </li>
+          {% endfor %}
+        {% else %}
+          <li><em>Нет участников</em></li>
+        {% endif %}
+      </ul>
+
+      <div class="stats">
+        <p>В строю: <span>...</span></p>
+        <p>Убиты: <span>...</span></p>
+      </div>
+    </div>
+
+    <!-- Центральная колонка -->
+    <div class="column center-column">
+      <div class="battle-field">
+        <!-- Игровое поле -->
+        <img id="camera-feed" src="/latest.jpg" alt="Фото с камеры" style="width:100%; border-radius:10px;">
+      </div>
+
+      <div class="info-panel">
+        <p>Команда: <span>...</span></p>
+        <p>Номер: <span>...</span></p>
+      </div>
+
+      <div class="button-group">
+        <button class="status-btn dead">Убит</button>
+        <button class="status-btn alive">В строю</button>
+      </div>
+    </div>
+
+    <!-- Правая колонка -->
+    <div class="column right-column">
+      <h2 id="team-name-2">{{ team2 }}</h2>
+
+      <ul class="members-list">
+        {% if members2 %}
+          {% for member in members2 %}
+            <li>
+              <span>{{ loop.index }}.</span>
+              <span>{{ member.rank or 'в/з' }} {{ member.name or 'ФИО' }}</span>
+              <button class="status-button active"></button>
+            </li>
+          {% endfor %}
+        {% else %}
+          <li><em>Нет участников</em></li>
+        {% endif %}
+      </ul>
+
+      <div class="stats">
+        <p>В строю: <span>...</span></p>
+        <p>Убиты: <span>...</span></p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- JS для обновления фото -->
+  <script src="/static/js/fight.js"></script>
+
+</body>
+</html>
