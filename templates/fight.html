@@ -19,7 +19,7 @@
           <li>
             <span>{{ loop.index }}.</span>
             <span>{{ member.rank or 'в/з' }} {{ member.name or 'ФИО' }}</span>
-            <button class="status-button active"></button>
+            <button class="status-button active" data-team="1" data-number="{{ loop.index }}"></button>
           </li>
         {% endfor %}
       {% else %}
@@ -56,7 +56,6 @@
       <div class="radio-group" id="number-radio-group">
         <!-- Номера будут добавлены через JS -->
       </div>
-
     </div>
 
     <div class="button-group">
@@ -75,7 +74,7 @@
           <li>
             <span>{{ loop.index }}.</span>
             <span>{{ member.rank or 'в/з' }} {{ member.name or 'ФИО' }}</span>
-            <button class="status-button active"></button>
+            <button class="status-button active" data-team="2" data-number="{{ loop.index }}"></button>
           </li>
         {% endfor %}
       {% else %}
@@ -124,7 +123,6 @@
 
     if (!list || list.length === 0) {
       numberGroup.innerHTML = "<em>Нет участников</em>";
-      memberNumberSpan.textContent = "-";
       return;
     }
 
@@ -149,7 +147,6 @@
     });
   });
 
-
   // === Инициализация при загрузке ===
   const initialTeamRadio = document.querySelector('input[name="team-select"]:checked');
   if (initialTeamRadio) {
@@ -162,31 +159,45 @@
   const btnAlive = document.getElementById("btn-alive");
   const btnDead = document.getElementById("btn-dead");
 
-  function sendStatus(status) {
-    const team = document.querySelector('input[name="team-select"]:checked')?.value;
-    const number = document.querySelector('input[name="number-select"]:checked')?.value;
+  function updateMemberStatus(isAlive) {
+  const selectedTeam = document.querySelector('input[name="team-select"]:checked')?.value;
+  const selectedNumber = document.querySelector('input[name="number-select"]:checked')?.value;
 
-    if (!team || !number) {
-      alert("Выберите команду и игрока");
-      return;
-    }
-
-    fetch(`/update_status?team=${team}&number=${number}&status=${status}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ team, number, status })
-    })
-    .then(response => {
-      if (response.ok) {
-        alert(`Статус игрока ${team}-${number} изменён на "${status}"`);
-      } else {
-        alert("Ошибка при обновлении статуса");
-      }
-    })
-    .catch(err => console.error("Ошибка:", err));
+  if (!selectedTeam || !selectedNumber) {
+    alert("Выберите команду и номер игрока");
+    return;
   }
+
+  // Определяем индекс колонки
+  const teamColumnIndex = selectedTeam === "1" ? 1 : 3;
+
+  // Находим нужную кнопку
+  const selector = `.column:nth-child(${teamColumnIndex}) .members-list button[data-number="${selectedNumber}"]`;
+  const statusButton = document.querySelector(selector);
+
+  if (!statusButton) {
+    console.warn("Не найден участник", selectedTeam, selectedNumber);
+    return;
+  }
+
+  // Меняем класс
+  if (isAlive) {
+    statusButton.classList.remove("inactive");
+    statusButton.classList.add("active");
+  } else {
+    statusButton.classList.remove("active");
+    statusButton.classList.add("inactive");
+  }
+}
+
+  btnAlive.addEventListener("click", () => {
+    updateMemberStatus(true);
+  });
+
+  btnDead.addEventListener("click", () => {
+    updateMemberStatus(false);
+  });
+
 
   // === Обновление фото ===
   function updateImage() {
