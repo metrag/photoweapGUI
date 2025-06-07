@@ -19,7 +19,7 @@
           <li>
             <span>{{ loop.index }}.</span>
             <span>{{ member.rank or 'в/з' }} {{ member.name or 'ФИО' }}</span>
-            <button class="status-button active" data-team="1" data-number="{{ loop.index }}"></button>
+            <button class="status-button active" data-team="1" data-number="{{ loop.index }}" data-status="alive"></button>
           </li>
         {% endfor %}
       {% else %}
@@ -28,8 +28,8 @@
     </ul>
 
     <div class="stats">
-      <p>В строю: <span>...</span></p>
-      <p>Убиты: <span>...</span></p>
+      <p>В строю: <span class="in-battle-count">{{ members1 | length }}</span></p>
+      <p>Убиты: <span class="killed-count">0</span></p>
     </div>
   </div>
 
@@ -74,7 +74,7 @@
           <li>
             <span>{{ loop.index }}.</span>
             <span>{{ member.rank or 'в/з' }} {{ member.name or 'ФИО' }}</span>
-            <button class="status-button active" data-team="2" data-number="{{ loop.index }}"></button>
+            <button class="status-button active" data-team="2" data-number="{{ loop.index }}" data-status="alive"></button>
           </li>
         {% endfor %}
       {% else %}
@@ -83,8 +83,8 @@
     </ul>
 
     <div class="stats">
-      <p>В строю: <span>...</span></p>
-      <p>Убиты: <span>...</span></p>
+      <p>В строю: <span class="in-battle-count">{{ members2 | length }}</span></p>
+      <p>Убиты: <span class="killed-count">0</span></p>
     </div>
   </div>
 
@@ -160,35 +160,44 @@
   const btnDead = document.getElementById("btn-dead");
 
   function updateMemberStatus(isAlive) {
-  const selectedTeam = document.querySelector('input[name="team-select"]:checked')?.value;
-  const selectedNumber = document.querySelector('input[name="number-select"]:checked')?.value;
+    const selectedTeam = document.querySelector('input[name="team-select"]:checked')?.value;
+    const selectedNumber = document.querySelector('input[name="number-select"]:checked')?.value;
 
-  if (!selectedTeam || !selectedNumber) {
-    alert("Выберите команду и номер игрока");
-    return;
+    if (!selectedTeam || !selectedNumber) {
+      alert("Выберите команду и номер игрока");
+      return;
+    }
+
+    // Определяем индекс колонки
+    const teamColumnIndex = selectedTeam === "1" ? 1 : 3;
+
+    // Находим нужную кнопку
+    const selector = `.column:nth-child(${teamColumnIndex}) .members-list button[data-number="${selectedNumber}"]`;
+    const statusButton = document.querySelector(selector);
+
+    if (!statusButton) {
+      console.warn("Не найден участник", selectedTeam, selectedNumber);
+      return;
+    }
+
+    // === Старый статус ===
+    const oldStatus = statusButton.getAttribute("data-status");
+
+    // === Обновляем статус ===
+    if (isAlive && oldStatus !== "alive") {
+      statusButton.setAttribute("data-status", "alive");
+      statusButton.classList.remove("inactive");
+      statusButton.classList.add("active");
+
+      updateCounters(teamColumnIndex, "alive");
+    } else if (!isAlive && oldStatus !== "dead") {
+      statusButton.setAttribute("data-status", "dead");
+      statusButton.classList.remove("active");
+      statusButton.classList.add("inactive");
+
+      updateCounters(teamColumnIndex, "dead");
+    }
   }
-
-  // Определяем индекс колонки
-  const teamColumnIndex = selectedTeam === "1" ? 1 : 3;
-
-  // Находим нужную кнопку
-  const selector = `.column:nth-child(${teamColumnIndex}) .members-list button[data-number="${selectedNumber}"]`;
-  const statusButton = document.querySelector(selector);
-
-  if (!statusButton) {
-    console.warn("Не найден участник", selectedTeam, selectedNumber);
-    return;
-  }
-
-  // Меняем класс
-  if (isAlive) {
-    statusButton.classList.remove("inactive");
-    statusButton.classList.add("active");
-  } else {
-    statusButton.classList.remove("active");
-    statusButton.classList.add("inactive");
-  }
-}
 
   btnAlive.addEventListener("click", () => {
     updateMemberStatus(true);
@@ -197,6 +206,25 @@
   btnDead.addEventListener("click", () => {
     updateMemberStatus(false);
   });
+
+
+  // === Функция подсчёта живых и мёртвых ===
+  function updateCounters(teamColumnIndex, newStatus) {
+    const column = document.querySelector(`.column:nth-child(${teamColumnIndex})`);
+    const aliveSpan = column.querySelector(".in-battle-count");
+    const deadSpan = column.querySelector(".killed-count");
+
+    const currentAlive = parseInt(aliveSpan.textContent);
+    const currentDead = parseInt(deadSpan.textContent);
+
+    if (newStatus === "dead") {
+      aliveSpan.textContent = currentAlive - 1;
+      deadSpan.textContent = currentDead + 1;
+    } else if (newStatus === "alive") {
+      aliveSpan.textContent = currentAlive + 1;
+      deadSpan.textContent = currentDead - 1;
+    }
+  }
 
 
   // === Обновление фото ===
