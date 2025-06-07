@@ -89,5 +89,16 @@ def upload_image():
 def get_latest_photo():
     return send_from_directory(app.config['UPLOAD_FOLDER'], "latest.jpg")
 
+@app.route('/update_status')
+def update_status():
+    team = request.args.get('team')
+    number = request.args.get('number')
+    status = request.args.get('status')
+
+    print(f"[СТАТУС] Игрок {team}-{number}: {status}")
+    # Здесь можно сохранить статус в БД или session
+
+    return {'status': 'ok'}, 200
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

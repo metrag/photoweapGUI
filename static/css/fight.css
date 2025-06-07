@@ -206,3 +206,12 @@ h2 {
 #team-name-2 {
   background-color: #4d77ff;
 }
+
+.radio-group label {
+  display: inline-block;
+  margin-right: 10px;
+}
+
+.radio-group input[type="radio"] {
+  margin-right: 5px;
+}

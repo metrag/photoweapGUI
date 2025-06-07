@@ -6,78 +6,200 @@
   <link rel="stylesheet" href="/static/css/fight.css">
 </head>
 <body>
-  <div class="container">
 
-    <!-- Левая колонка -->
-    <div class="column left-column">
-      <h2 id="team-name-1">{{ team1 }}</h2>
+<div class="container">
 
-      <ul class="members-list">
-        {% if members1 %}
-          {% for member in members1 %}
-            <li>
-              <span>{{ loop.index }}.</span>
-              <span>{{ member.rank or 'в/з' }} {{ member.name or 'ФИО' }}</span>
-              <button class="status-button active"></button>
-            </li>
-          {% endfor %}
-        {% else %}
-          <li><em>Нет участников</em></li>
-        {% endif %}
-      </ul>
+  <!-- Левая колонка -->
+  <div class="column left-column">
+    <h2 id="team-name-1">{{ team1 }}</h2>
 
-      <div class="stats">
-        <p>В строю: <span>...</span></p>
-        <p>Убиты: <span>...</span></p>
-      </div>
+    <ul class="members-list">
+      {% if members1 %}
+        {% for member in members1 %}
+          <li>
+            <span>{{ loop.index }}.</span>
+            <span>{{ member.rank or 'в/з' }} {{ member.name or 'ФИО' }}</span>
+            <button class="status-button active"></button>
+          </li>
+        {% endfor %}
+      {% else %}
+        <li><em>Нет участников</em></li>
+      {% endif %}
+    </ul>
+
+    <div class="stats">
+      <p>В строю: <span>...</span></p>
+      <p>Убиты: <span>...</span></p>
     </div>
-
-    <!-- Центральная колонка -->
-    <div class="column center-column">
-      <div class="battle-field">
-        <!-- Игровое поле -->
-        <img id="camera-feed" src="/latest.jpg" alt="Фото с камеры" style="width:100%; border-radius:10px;">
-      </div>
-
-      <div class="info-panel">
-        <p>Команда: <span>...</span></p>
-        <p>Номер: <span>...</span></p>
-      </div>
-
-      <div class="button-group">
-        <button class="status-btn dead">Убит</button>
-        <button class="status-btn alive">В строю</button>
-      </div>
-    </div>
-
-    <!-- Правая колонка -->
-    <div class="column right-column">
-      <h2 id="team-name-2">{{ team2 }}</h2>
-
-      <ul class="members-list">
-        {% if members2 %}
-          {% for member in members2 %}
-            <li>
-              <span>{{ loop.index }}.</span>
-              <span>{{ member.rank or 'в/з' }} {{ member.name or 'ФИО' }}</span>
-              <button class="status-button active"></button>
-            </li>
-          {% endfor %}
-        {% else %}
-          <li><em>Нет участников</em></li>
-        {% endif %}
-      </ul>
-
-      <div class="stats">
-        <p>В строю: <span>...</span></p>
-        <p>Убиты: <span>...</span></p>
-      </div>
-    </div>
-
   </div>
 
-  <!-- JS для обновления фото -->
-  <script src="/static/js/fight.js"></script>
+  <!-- Центральная колонка -->
+  <div class="column center-column">
+    <div class="battle-field">
+      <img id="camera-feed" src="/latest.jpg" alt="Фото с камеры" style="width:100%; border-radius:10px;">
+    </div>
+
+    <div class="info-panel">
+      <p><strong>Выберите команду:</strong></p>
+      <div class="radio-group" id="team-radio-group">
+        <label>
+          <input type="radio" name="team-select" value="1" checked>
+          {{ team1 }}
+        </label>
+        <label>
+          <input type="radio" name="team-select" value="2">
+          {{ team2 }}
+        </label>
+      </div>
+
+      <p><strong>Выберите номер:</strong></p>
+      <div class="radio-group" id="number-radio-group">
+        <!-- Номера будут добавлены через JS -->
+      </div>
+
+    </div>
+
+    <div class="button-group">
+      <button class="status-btn dead" id="btn-dead">Убит</button>
+      <button class="status-btn alive" id="btn-alive">В строю</button>
+    </div>
+  </div>
+
+  <!-- Правая колонка -->
+  <div class="column right-column">
+    <h2 id="team-name-2">{{ team2 }}</h2>
+
+    <ul class="members-list">
+      {% if members2 %}
+        {% for member in members2 %}
+          <li>
+            <span>{{ loop.index }}.</span>
+            <span>{{ member.rank or 'в/з' }} {{ member.name or 'ФИО' }}</span>
+            <button class="status-button active"></button>
+          </li>
+        {% endfor %}
+      {% else %}
+        <li><em>Нет участников</em></li>
+      {% endif %}
+    </ul>
+
+    <div class="stats">
+      <p>В строю: <span>...</span></p>
+      <p>Убиты: <span>...</span></p>
+    </div>
+  </div>
+
+</div>
+
+<!-- JS логика -->
+<script>
+  // === Получаем данные из шаблона как объекты ===
+  const members1 = [
+    {% if members1 %}
+      {% for member in members1 %}
+        { rank: "{{ member.rank | replace('"', '\\"') }}", name: "{{ member.name | replace('"', '\\"') }}" },
+      {% endfor %}
+    {% endif %}
+  ];
+
+  const members2 = [
+    {% if members2 %}
+      {% for member in members2 %}
+        { rank: "{{ member.rank | replace('"', '\\"') }}", name: "{{ member.name | replace('"', '\\"') }}" },
+      {% endfor %}
+    {% endif %}
+  ];
+
+  console.log("members1:", members1);
+  console.log("members2:", members2);
+
+  // === Переменные ===
+  const numberGroup = document.getElementById("number-radio-group");
+
+  // === Заполнение номеров по команде ===
+  function populateNumbers(team) {
+    numberGroup.innerHTML = ""; // Очистить старые
+
+    const list = team === "1" ? members1 : members2;
+
+    if (!list || list.length === 0) {
+      numberGroup.innerHTML = "<em>Нет участников</em>";
+      memberNumberSpan.textContent = "-";
+      return;
+    }
+
+    list.forEach((member, index) => {
+      const num = index + 1;
+
+      const label = document.createElement("label");
+      label.style.marginRight = "15px";
+      label.innerHTML = `
+        <input type="radio" name="number-select" value="${num}" ${index === 0 ? 'checked' : ''}>
+        ${num}
+      `;
+      numberGroup.appendChild(label);
+    });
+  }
+
+  // === Обработчик изменения команды ===
+  document.querySelectorAll('input[name="team-select"]').forEach(radio => {
+    radio.addEventListener("change", function () {
+      const selectedTeam = this.value;
+      populateNumbers(selectedTeam);
+    });
+  });
+
+
+  // === Инициализация при загрузке ===
+  const initialTeamRadio = document.querySelector('input[name="team-select"]:checked');
+  if (initialTeamRadio) {
+    populateNumbers(initialTeamRadio.value);
+  } else {
+    numberGroup.innerHTML = "<em>Выберите команду</em>";
+  }
+
+  // === Кнопки статуса ===
+  const btnAlive = document.getElementById("btn-alive");
+  const btnDead = document.getElementById("btn-dead");
+
+  function sendStatus(status) {
+    const team = document.querySelector('input[name="team-select"]:checked')?.value;
+    const number = document.querySelector('input[name="number-select"]:checked')?.value;
+
+    if (!team || !number) {
+      alert("Выберите команду и игрока");
+      return;
+    }
+
+    fetch(`/update_status?team=${team}&number=${number}&status=${status}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ team, number, status })
+    })
+    .then(response => {
+      if (response.ok) {
+        alert(`Статус игрока ${team}-${number} изменён на "${status}"`);
+      } else {
+        alert("Ошибка при обновлении статуса");
+      }
+    })
+    .catch(err => console.error("Ошибка:", err));
+  }
+
+  // === Обновление фото ===
+  function updateImage() {
+    const img = document.getElementById('camera-feed');
+    if (img) {
+      img.src = '/latest.jpg?' + new Date().getTime(); // Антикэширование
+    }
+  }
+
+  setInterval(updateImage, 5000); // Каждые 5 секунд
+  window.addEventListener('load', updateImage);
+
+</script>
 
 </body>
 </html>
