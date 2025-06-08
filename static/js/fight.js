@@ -7,10 +7,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let currentTeam = "1";
   let currentNumber = "1";
-  let lastPhotoUrl = null;
-  let isWaitingForAction = false; // Флаг: ждём решения пользователя
 
   const cameraFeed = document.getElementById("camera-feed");
+  const defaultPhotoUrl = "/static/img/download.png";
+  let lastPhotoUrl = null;
+  let isWaitingForAction = false;
 
   // === Заполняем номера участников ===
   populateNumbers(currentTeam);
@@ -25,6 +26,133 @@ document.addEventListener('DOMContentLoaded', () => {
 
   btnAlive.addEventListener("click", () => handleStatus(true));
   btnDead.addEventListener("click", () => handleStatus(false));
+
+
+  // === Автообновление фото ===
+  function checkForNewPhotos() {
+    fetch("/latest-photo")
+      .then(response => response.json())
+      .then(data => {
+        if (data.status === "success") {
+          lastPhotoUrl = data.photo_url;
+          isWaitingForAction = true; // Ждём решения пользователя
+          updatePhotoDisplay(lastPhotoUrl);
+        } else {
+          if (!isWaitingForAction) {
+            updatePhotoDisplay(defaultPhotoUrl);
+          }
+        }
+      })
+      .catch(err => console.error("Ошибка получения фото:", err))
+      .finally(() => {
+        setTimeout(checkForNewPhotos, 3000); // Каждые 3 секунды
+      });
+  }
+
+  checkForNewPhotos(); // Стартуем автообновление
+
+
+  // === Обновление фото в интерфейсе ===
+  function updatePhotoDisplay(photoUrl) {
+    if (!cameraFeed) return;
+
+    cameraFeed.src = photoUrl;
+    cameraFeed.style.display = 'block';
+  }
+
+
+  // === Получение данных о кнопке статуса ===
+  function getStatusButton(team, number) {
+    const columnIndex = team === "1" ? 1 : 3;
+    return document.querySelector(
+      `.column:nth-child(${columnIndex}) .members-list button[data-number="${number}"]`
+    );
+  }
+
+  function updateButtonStatus(button, isAlive) {
+    if (!button) return;
+    button.dataset.status = isAlive ? "alive" : "dead";
+    button.classList.remove("active", "inactive");
+    button.classList.add(isAlive ? "active" : "inactive");
+  }
+
+  function updateCounters(team, isAlive) {
+    const columnIndex = team === "1" ? 1 : 3;
+    const column = document.querySelector(`.column:nth-child(${columnIndex})`);
+    const aliveSpan = column.querySelector(".in-battle-count");
+    const deadSpan = column.querySelector(".killed-count");
+
+    const aliveCount = parseInt(aliveSpan.textContent);
+    const deadCount = parseInt(deadSpan.textContent);
+
+    if (isAlive) {
+      aliveSpan.textContent = aliveCount + 1;
+      deadSpan.textContent = Math.max(0, deadCount - 1);
+    } else {
+      aliveSpan.textContent = Math.max(0, aliveCount - 1);
+      deadSpan.textContent = deadCount + 1;
+    }
+  }
+
+  // === Обработка нажатия "Жив"/"Убит" ===
+  function handleStatus(isAlive) {
+    const team = document.querySelector('input[name="team-select"]:checked')?.value;
+    const number = document.querySelector('input[name="number-select"]:checked')?.value;
+
+    if (!team || !number) {
+      alert("Выберите команду и номер участника");
+      return;
+    }
+
+    const button = getStatusButton(team, number);
+    if (!button) return;
+
+    updateButtonStatus(button, isAlive);
+    updateCounters(team, isAlive);
+
+    // Отправляем статус на сервер
+    fetch('/update_status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ team, number, status: isAlive ? 'alive' : 'dead' })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.status === 'next-photo-available') {
+        fetchNextPhoto();
+      } else {
+        // Нет новых фото → снова начинаем автообновление
+        isWaitingForAction = false;
+      }
+    })
+    .catch(err => {
+      console.error("Ошибка отправки статуса:", err);
+      fetchNextPhoto();
+    });
+  }
+
+
+  // === Получение следующего фото ===
+  function fetchNextPhoto() {
+    fetch("/latest-photo")
+      .then(response => response.json())
+      .then(data => {
+        if (data.status === "success") {
+          lastPhotoUrl = data.photo_url;
+          isWaitingForAction = true;
+          updatePhotoDisplay(lastPhotoUrl);
+        } else {
+          lastPhotoUrl = defaultPhotoUrl;
+          isWaitingForAction = false;
+          updatePhotoDisplay(defaultPhotoUrl);
+        }
+      })
+      .catch(err => {
+        console.error("Ошибка получения фото:", err);
+        updatePhotoDisplay(defaultPhotoUrl);
+        isWaitingForAction = false;
+      });
+  }
 
 
   // === Заполнение номеров игроков ===
@@ -48,126 +176,5 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
       numberGroup.appendChild(label);
     });
-  }
-
-
-  // === Обновление фото в интерфейсе ===
-  function updatePhotoDisplay(photoUrl) {
-    const feed = document.getElementById("camera-feed");
-    if (!feed) return;
-
-    feed.src = photoUrl;
-    feed.style.display = 'block';
-  }
-
-
-  // === Получение следующего фото после нажатия "Жив"/"Убит" ===
-  function fetchNextPhoto() {
-    fetch("/latest-photo")
-      .then(response => response.json())
-      .then(data => {
-        if (data.status === "success") {
-          lastPhotoUrl = data.photo_url;
-          isWaitingForAction = false;
-
-          // Если фото не download.png → показываем и выходим
-          if (!lastPhotoUrl.includes("download.png")) {
-            updatePhotoDisplay(lastPhotoUrl);
-          }
-        } else {
-          lastPhotoUrl = "/static/img/download.png";
-          updatePhotoDisplay(lastPhotoUrl);
-        }
-      })
-      .catch(err => console.error("Ошибка получения фото:", err));
-  }
-
-
-  // === Автообновление только если текущее фото == download.png ===
-  function checkForNewPhotos() {
-    if (isWaitingForAction) return; // Ждём решения пользователя
-
-    fetch("/latest-photo")
-      .then(response => response.json())
-      .then(data => {
-        if (data.status === "success") {
-          lastPhotoUrl = data.photo_url;
-          isWaitingForAction = true;
-          updatePhotoDisplay(lastPhotoUrl);
-        } else {
-          lastPhotoUrl = "/static/img/download.png";
-          updatePhotoDisplay(lastPhotoUrl);
-        }
-      })
-      .catch(err => console.error("Ошибка получения фото:", err))
-      .finally(() => {
-        setTimeout(checkForNewPhotos, 3000); // Каждые 3 секунды
-      });
-  }
-
-  checkForNewPhotos(); // Начинаем опрос
-
-
-  // === Обработка нажатия "Жив"/"Убит" ===
-  function handleStatus(isAlive) {
-    const team = document.querySelector('input[name="team-select"]:checked')?.value;
-    const number = document.querySelector('input[name="number-select"]:checked')?.value;
-
-    if (!team || !number) {
-      alert("Выберите команду и номер игрока");
-      return;
-    }
-
-    const button = getStatusButton(team, number);
-    if (!button) return;
-
-    updateButtonStatus(button, isAlive);
-    updateCounters(team, isAlive);
-
-    // Отправляем статус на сервер
-    fetch('/update_status', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ team, number, status: isAlive ? 'alive' : 'dead' })
-    })
-    .then(response => response.json())
-    .then(() => {
-      // После отправки запроса — запрашиваем новое фото
-      fetchNextPhoto();
-    })
-    .catch(err => console.error("Ошибка отправки статуса:", err));
-  }
-
-
-  // === Получение данных о кнопке ===
-  function getStatusButton(team, number) {
-    const columnIndex = team === "1" ? 1 : 3;
-    return document.querySelector(
-      `.column:nth-child(${columnIndex}) .members-list button[data-number="${number}"]`
-    );
-  }
-
-  function updateButtonStatus(button, isAlive) {
-    button.dataset.status = isAlive ? "alive" : "dead";
-    button.classList.remove("active", "inactive");
-    button.classList.add(isAlive ? "active" : "inactive");
-  }
-
-  function updateCounters(team, isAlive) {
-    const columnIndex = team === "1" ? 1 : 3;
-    const column = document.querySelector(`.column:nth-child(${columnIndex})`);
-    const aliveSpan = column.querySelector(".in-battle-count");
-    const deadSpan = column.querySelector(".killed-count");
-
-    const aliveCount = parseInt(aliveSpan.textContent);
-    const deadCount = parseInt(deadSpan.textContent);
-
-    if (isAlive) {
-      aliveSpan.textContent = aliveCount + 1;
-      deadSpan.textContent = Math.max(0, deadCount - 1);
-    } else {
-      aliveSpan.textContent = Math.max(0, aliveCount - 1);
-      deadSpan.textContent = deadCount + 1;
-    }
   }
 });
