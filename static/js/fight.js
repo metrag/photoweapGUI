@@ -7,8 +7,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let currentTeam = "1";
   let currentNumber = "1";
+  let lastPhotoUrl = null;
 
-  // === Заполняем номера участников по умолчанию ===
+  // === Заполняем номера участников ===
   populateNumbers(currentTeam);
 
   // === Обработчики событий ===
@@ -21,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   btnAlive.addEventListener("click", () => setStatus(true));
   btnDead.addEventListener("click", () => setStatus(false));
+
 
   // === Заполнение номеров игроков ===
   function populateNumbers(team) {
@@ -36,21 +38,42 @@ document.addEventListener('DOMContentLoaded', () => {
     list.forEach((_, index) => {
       const num = index + 1;
       const label = document.createElement("label");
-      const radio = document.createElement("input");
-
-      radio.type = "radio";
-      radio.name = "number-select";
-      radio.value = num;
-      radio.id = `number-${team}-${num}`;
-      if (index === 0) radio.checked = true;
-
-      label.setAttribute("for", radio.id);
       label.style.marginRight = "15px";
-      label.innerHTML = `<input type="radio" name="number-select" value="${num}" ${index === 0 ? 'checked' : ''}> ${num}`;
-
+      label.innerHTML = `
+        <input type="radio" name="number-select" value="${num}" ${index === 0 ? 'checked' : ''}>
+        ${num}
+      `;
       numberGroup.appendChild(label);
     });
   }
+
+
+  // === Получение следующего фото после нажатия ===
+  function fetchNextPhoto() {
+    fetch("/latest-photo")
+      .then(response => response.json())
+      .then(data => {
+        if (data.status === "success") {
+          lastPhotoUrl = data.photo_url;
+          updatePhotoDisplay(lastPhotoUrl);
+        } else {
+          lastPhotoUrl = "/static/img/download.png";
+          updatePhotoDisplay(lastPhotoUrl);
+        }
+      })
+      .catch(err => console.error("Ошибка получения фото:", err));
+  }
+
+
+  // === Обновление фото в интерфейсе ===
+  function updatePhotoDisplay(photoUrl) {
+    const cameraFeed = document.getElementById("camera-feed");
+    if (!cameraFeed) return;
+
+    cameraFeed.src = photoUrl;
+    cameraFeed.style.display = 'block';
+  }
+
 
   // === Обновление статуса игрока ===
   function getStatusButton(team, number) {
@@ -100,38 +123,17 @@ document.addEventListener('DOMContentLoaded', () => {
     updateButtonStatus(button, isAlive);
     updateCounters(team, isAlive);
 
-    console.log(`[STATUS] Участник ${team}-${number} → ${isAlive ? 'жив' : 'убит'}`);
+    // Отправляем статус на сервер
+    fetch('/update_status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ team, number, status: isAlive ? 'alive' : 'dead' })
+    })
+    .then(response => response.json())
+    .then(() => {
+      // Запрашиваем следующее фото
+      fetchNextPhoto();
+    })
+    .catch(err => console.error("Ошибка отправки статуса:", err));
   }
-
-  // === Автоматическое обновление фото ===
-  const cameraFeed = document.getElementById("camera-feed");
-  let lastPhotoUrl = null;
-
-  function checkForNewPhotos() {
-    fetch("/latest-photo")
-      .then(response => response.json())
-      .then(data => {
-        if (data.status === "success") {
-          if (lastPhotoUrl !== data.photo_url) {
-            lastPhotoUrl = data.photo_url;
-            updatePhotoDisplay(lastPhotoUrl);
-          }
-        } else {
-          if (!cameraFeed.src.includes("download.png")) {
-            updatePhotoDisplay("/static/img/download.png");
-          }
-        }
-      })
-      .catch(err => console.error("Ошибка загрузки фото:", err))
-      .finally(() => {
-        setTimeout(checkForNewPhotos, 3000); // Каждые 3 секунды
-      });
-  }
-
-  function updatePhotoDisplay(photoUrl) {
-    cameraFeed.src = photoUrl;
-    cameraFeed.style.display = "block";
-  }
-
-  checkForNewPhotos(); // Запускаем опрос сервера
 });
