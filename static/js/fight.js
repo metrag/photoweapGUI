@@ -37,13 +37,21 @@ document.addEventListener('DOMContentLoaded', () => {
           lastPhotoUrl = data.photo_url;
           isWaitingForAction = true; // Ждём решения пользователя
           updatePhotoDisplay(lastPhotoUrl);
+          enableControls(); // Разрешаем нажатия
         } else {
-          if (!isWaitingForAction) {
-            updatePhotoDisplay(defaultPhotoUrl);
-          }
+          lastPhotoUrl = defaultPhotoUrl;
+          isWaitingForAction = false;
+          updatePhotoDisplay(defaultPhotoUrl);
+          disableControls(); // Блокируем выбор
         }
       })
-      .catch(err => console.error("Ошибка получения фото:", err))
+      .catch(err => {
+        console.error("Ошибка получения фото:", err);
+        lastPhotoUrl = defaultPhotoUrl;
+        isWaitingForAction = false;
+        updatePhotoDisplay(defaultPhotoUrl);
+        disableControls();
+      })
       .finally(() => {
         setTimeout(checkForNewPhotos, 3000); // Каждые 3 секунды
       });
@@ -94,6 +102,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // === Блокировка / разблокировка элементов ===
+  function disableControls() {
+    document.querySelectorAll('input[name="team-select"]').forEach(input => input.disabled = true);
+    document.querySelectorAll('input[name="number-select"]').forEach(input => input.disabled = true);
+    btnAlive.disabled = true;
+    btnDead.disabled = true;
+    btnAlive.classList.add("disabled");
+    btnDead.classList.add("disabled");
+  }
+
+  function enableControls() {
+    document.querySelectorAll('input[name="team-select"]').forEach(input => input.disabled = false);
+    document.querySelectorAll('input[name="number-select"]').forEach(input => input.disabled = false);
+    btnAlive.disabled = false;
+    btnDead.disabled = false;
+    btnAlive.classList.remove("disabled");
+    btnDead.classList.remove("disabled");
+  }
+
+  // === Инициализация блокировки ===
+  disableControls();
+
+
   // === Обработка нажатия "Жив"/"Убит" ===
   function handleStatus(isAlive) {
     const team = document.querySelector('input[name="team-select"]:checked')?.value;
@@ -121,8 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (data.status === 'next-photo-available') {
         fetchNextPhoto();
       } else {
-        // Нет новых фото → снова начинаем автообновление
-        isWaitingForAction = false;
+        fetchNextPhoto(); // Если нет фото → download.png
       }
     })
     .catch(err => {
@@ -141,16 +171,20 @@ document.addEventListener('DOMContentLoaded', () => {
           lastPhotoUrl = data.photo_url;
           isWaitingForAction = true;
           updatePhotoDisplay(lastPhotoUrl);
+          enableControls();
         } else {
           lastPhotoUrl = defaultPhotoUrl;
           isWaitingForAction = false;
           updatePhotoDisplay(defaultPhotoUrl);
+          disableControls();
         }
       })
       .catch(err => {
         console.error("Ошибка получения фото:", err);
-        updatePhotoDisplay(defaultPhotoUrl);
+        lastPhotoUrl = defaultPhotoUrl;
         isWaitingForAction = false;
+        updatePhotoDisplay(defaultPhotoUrl);
+        disableControls();
       });
   }
 
@@ -168,7 +202,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     list.forEach((_, index) => {
       const num = index + 1;
+      const id = `number-${team}-${num}`;
       const label = document.createElement("label");
+      label.setAttribute("for", id);
       label.style.marginRight = "15px";
       label.innerHTML = `
         <input type="radio" name="number-select" value="${num}" ${index === 0 ? 'checked' : ''}>
