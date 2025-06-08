@@ -1,23 +1,16 @@
 from flask import Flask, render_template, request, redirect, url_for, session, send_from_directory, jsonify
 import os
 import time
-from datetime import datetime
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'photos'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 app.secret_key = 'supersecretkey'
 
-# Для хранения информации о фотографиях
-photo_storage = {
-    'last_photo': None,
-    'photo_queue': [],
-    'counter': 0
-}
-
 @app.route('/')
 def index():
     return render_template('index.html')
+
 
 @app.route('/start', methods=['GET', 'POST'])
 def start():
@@ -25,7 +18,7 @@ def start():
         team1 = request.form.get('team1', 'Команда 1')
         team2 = request.form.get('team2', 'Команда 2')
 
-        # Сбор участников
+        # === Сбор участников команды 1 ===
         members1 = []
         i = 1
         while True:
@@ -36,6 +29,7 @@ def start():
             members1.append({'rank': rank or '', 'name': name or ''})
             i += 1
 
+        # === Сбор участников команды 2 ===
         members2 = []
         j = 1
         while True:
@@ -57,68 +51,82 @@ def start():
 
     return render_template('start.html')
 
+
 @app.route('/fight')
 def fight():
     data = session.get('fight_data')
     if not data:
         return redirect(url_for('start'))
-    
-    # Передаем последнее фото при загрузке страницы
-    initial_photo = None
-    if photo_storage['last_photo']:
-        initial_photo = f'/photos/{photo_storage["last_photo"]}'
-    
+
     return render_template('fight.html',
-                         team1=data['team1'],
-                         team2=data['team2'],
-                         members1=data['members1'],
-                         members2=data['members2'],
-                         initial_photo=initial_photo)
+                           team1=data['team1'],
+                           team2=data['team2'],
+                           members1=data['members1'],
+                           members2=data['members2'])
+
 
 @app.route('/upload', methods=['POST'])
 def upload_image():
-    if not request.data or len(request.data) < 1024:  # Минимальный размер 1KB
-        return jsonify({'status': 'error', 'message': 'Invalid image data'}), 400
-    
+    if not request.data or len(request.data) < 1024:
+        return jsonify({'status': 'error', 'message': 'Неверные данные'}), 400
+
     try:
-        # Генерируем уникальное имя файла
         timestamp = int(time.time())
-        filename = f"photo_{photo_storage['counter']}_{timestamp}.jpg"
-        photo_storage['counter'] += 1
-        
-        # Сохраняем фото
+        filename = f"photo_{timestamp}.jpg"
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+
         with open(filepath, 'wb') as f:
             f.write(request.data)
-        
-        # Обновляем хранилище
-        photo_storage['last_photo'] = filename
-        photo_storage['photo_queue'].append(filename)
-        
-        print(f"Фото сохранено: {filename}")
-        return jsonify({'status': 'success', 'filename': filename}), 200
-    
+
+        print(f"✅ Фото сохранено: {filename}")
+        return jsonify({
+            'status': 'success',
+            'filename': filename
+        }), 200
+
     except Exception as e:
-        print(f"Ошибка при сохранении фото: {str(e)}")
+        print("❌ Ошибка:", str(e))
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-@app.route('/get_last_photo')
-def get_last_photo():
-    if not photo_storage['last_photo']:
-        return jsonify({'status': 'no_photo'}), 404
-    
-    return jsonify({
-        'status': 'success',
-        'photo_url': f'/photos/{photo_storage["last_photo"]}',
-        'timestamp': int(time.time())
-    })
+
+@app.route('/latest-photo')
+def latest_photo():
+    try:
+        files = [f for f in os.listdir(app.config['UPLOAD_FOLDER']) 
+                 if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+
+        if not files:
+            return jsonify({
+                'status': 'no-photo',
+                'photo_url': '/static/img/download.png'
+            })
+
+        def get_mtime(f):
+            return os.path.getmtime(os.path.join(app.config['UPLOAD_FOLDER'], f))
+
+        latest_file = max(files, key=get_mtime)
+        photo_url = f'/photos/{latest_file}'
+
+        return jsonify({
+            'status': 'success',
+            'photo_url': photo_url + '?t=' + str(int(time.time()))
+        })
+
+    except Exception as e:
+        print("Ошибка получения фото:", str(e))
+        return jsonify({
+            'status': 'error',
+            'photo_url': '/static/img/download.png'
+        })
+
 
 @app.route('/photos/<filename>')
 def serve_photo(filename):
     try:
         return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
     except FileNotFoundError:
-        return jsonify({'status': 'error', 'message': 'Photo not found'}), 404
+        return send_from_directory('static/img/', 'download.png')
+
 
 @app.route('/update_status', methods=['POST'])
 def update_status():
@@ -126,18 +134,12 @@ def update_status():
     team = data.get('team')
     number = data.get('number')
     status = data.get('status')
-    
-    print(f"[STATUS] Player {team}-{number}: {status}")
-    
-    # Всегда возвращаем последнее фото при обновлении статуса
-    if photo_storage['last_photo']:
-        return jsonify({
-            'status': 'success',
-            'photo_url': f'/photos/{photo_storage["last_photo"]}',
-            'timestamp': int(time.time())
-        })
-    
-    return jsonify({'status': 'no_photo'})
+
+    print(f"[СТАТУС] Игрок {team}-{number}: {status}")
+
+    return jsonify({
+        'status': 'ok'
+    })
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

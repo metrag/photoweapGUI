@@ -80,7 +80,7 @@ body {
 .battle-field {
   width: 100%;
   flex-grow: 1;
-  background-color: #8b5a2b;
+  background-color: #f0f0f0;
   border-radius: 10px;
   display: flex;
   justify-content: center;

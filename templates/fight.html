@@ -2,7 +2,6 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>БОЙ</title>
   <link rel="stylesheet" href="/static/css/fight.css">
 </head>
@@ -37,9 +36,7 @@
   <!-- Центральная колонка -->
   <div class="column center-column">
     <div class="battle-field">
-      <!-- Изменено: добавлен скрытый input для начального фото и изменен img -->
-      <input type="hidden" id="initial-photo" value="{{ initial_photo or '' }}">
-      <img id="camera-feed" src="" alt="Фото с камеры" style="display: none; max-width: 100%;">
+      <img id="camera-feed" src="/static/img/download.png" alt="Фото с камеры" style="width:100%; border-radius:10px;">
     </div>
 
     <div class="info-panel">
@@ -57,7 +54,7 @@
 
       <p><strong>Выберите номер:</strong></p>
       <div class="radio-group" id="number-radio-group">
-        <!-- Номера будут добавлены через JS -->
+        <!-- Номера будут добавлены JS -->
       </div>
     </div>
 
@@ -93,15 +90,26 @@
 
 </div>
 
-<!-- Передаем данные в JS -->
-<script id="members1-data" type="application/json">
-  {{ members1 | tojson | safe }}
-</script>
-<script id="members2-data" type="application/json">
-  {{ members2 | tojson | safe }}
+<!-- Передача данных в JS -->
+<script>
+  const members1 = [
+    {% if members1 %}
+      {% for member in members1 %}
+        { "rank": "{{ member.rank or 'в/з' }}", "name": "{{ member.name or 'ФИО' }}" },
+      {% endfor %}
+    {% endif %}
+  ];
+
+  const members2 = [
+    {% if members2 %}
+      {% for member in members2 %}
+        { "rank": "{{ member.rank or 'в/з' }}", "name": "{{ member.name or 'ФИО' }}" },
+      {% endfor %}
+    {% endif %}
+  ];
 </script>
 
-<!-- Подключаем JS файл -->
+<!-- Подключение JS -->
 <script src="/static/js/fight.js"></script>
 
 </body>
