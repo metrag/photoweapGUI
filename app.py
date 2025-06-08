@@ -1,11 +1,23 @@
 from flask import Flask, render_template, request, redirect, url_for, session, send_from_directory, jsonify
 import os
 import time
+import cv2
+import numpy as np
+from ultralytics import YOLO
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'photos'
+app.config['PROCESSED_FOLDER'] = 'processed'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+os.makedirs(app.config['PROCESSED_FOLDER'], exist_ok=True)
 app.secret_key = 'supersecretkey'
+
+# === Загрузка модели YOLO ===
+model = YOLO("yolov8s.pt")  # Скачается при первом запуске
+CLASS_HUMAN = 0  # В YOLO класс человека — это 0
+
+# === Храним список обработанных файлов ===
+processed_files = []
 
 @app.route('/')
 def index():
@@ -18,7 +30,6 @@ def start():
         team1 = request.form.get('team1', 'Команда 1')
         team2 = request.form.get('team2', 'Команда 2')
 
-        # === Сбор участников команды 1 ===
         members1 = []
         i = 1
         while True:
@@ -29,7 +40,6 @@ def start():
             members1.append({'rank': rank or '', 'name': name or ''})
             i += 1
 
-        # === Сбор участников команды 2 ===
         members2 = []
         j = 1
         while True:
@@ -72,60 +82,46 @@ def upload_image():
 
     try:
         timestamp = int(time.time())
-        filename = f"photo_{timestamp}.jpg"
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        raw_path = os.path.join(app.config['UPLOAD_FOLDER'], f'latest.jpg')  # Сохраняем как latest.jpg
+        processed_path = os.path.join(app.config['PROCESSED_FOLDER'], f'latest_processed_{timestamp}.jpg')
 
-        with open(filepath, 'wb') as f:
+        with open(raw_path, 'wb') as f:
             f.write(request.data)
 
-        print(f"✅ Фото сохранено: {filename}")
-        return jsonify({
-            'status': 'success',
-            'filename': filename
-        }), 200
+        # Обработка фото
+        process_and_save_image(raw_path, processed_path)
+
+        # Добавляем в очередь обработанных
+        processed_files.insert(0, f'latest_processed_{timestamp}.jpg')
+
+        print("✅ Фото сохранено и обработано")
+        return jsonify({'status': 'success'}), 200
 
     except Exception as e:
         print("❌ Ошибка:", str(e))
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
-@app.route('/latest-photo')
-def latest_photo():
-    try:
-        files = [f for f in os.listdir(app.config['UPLOAD_FOLDER']) 
-                 if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
-
-        if not files:
-            return jsonify({
-                'status': 'no-photo',
-                'photo_url': '/static/img/download.png'
-            })
-
-        def get_mtime(f):
-            return os.path.getmtime(os.path.join(app.config['UPLOAD_FOLDER'], f))
-
-        latest_file = max(files, key=get_mtime)
-        photo_url = f'/photos/{latest_file}'
-
+@app.route('/get_next_photo')
+def get_next_photo():
+    """Возвращает последнее обработанное фото или download.png"""
+    if len(processed_files) > 0:
+        filename = processed_files.pop(0)
+        photo_url = f'/processed/{filename}'
         return jsonify({
             'status': 'success',
             'photo_url': photo_url + '?t=' + str(int(time.time()))
         })
-
-    except Exception as e:
-        print("Ошибка получения фото:", str(e))
+    else:
         return jsonify({
-            'status': 'error',
+            'status': 'no-photo',
             'photo_url': '/static/img/download.png'
         })
 
 
-@app.route('/photos/<filename>')
-def serve_photo(filename):
-    try:
-        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-    except FileNotFoundError:
-        return send_from_directory('static/img/', 'download.png')
+@app.route('/processed/<filename>')
+def serve_processed(filename):
+    return send_from_directory(app.config['PROCESSED_FOLDER'], filename)
 
 
 @app.route('/update_status', methods=['POST'])
@@ -137,9 +133,45 @@ def update_status():
 
     print(f"[СТАТУС] Игрок {team}-{number}: {status}")
 
-    return jsonify({
-        'status': 'ok'
-    })
+    return jsonify({'status': 'ok'})
+
+
+def process_and_save_image(input_path, output_path):
+    frame = cv2.imread(input_path)
+    h, w, _ = frame.shape
+    center_x, center_y = w // 2, h // 2
+
+    results = model(input_path, verbose=False)
+
+    hit = False
+
+    for r in results:
+        boxes = r.boxes
+        for box in boxes:
+            if int(box.cls) != CLASS_HUMAN:
+                continue
+
+            b = box.xyxy[0].tolist()
+            x1, y1, x2, y2 = map(int, b)
+            cx = (x1 + x2) / 2
+            cy = (y1 + y2) / 2
+
+            # Рисуем чёрную рамку вокруг человека
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 0), 3)
+
+            # Проверяем, находится ли человек в центре
+            if abs(cx - center_x) < 50 and abs(cy - center_y) < 50:
+                hit = True  # Человек поражён
+
+    # === Рисуем крест-прицел: красный или серый ===
+    color = (0, 0, 255) if hit else (128, 128, 128)
+
+    cv2.line(frame, (center_x - 20, center_y), (center_x + 20, center_y), color, 2)
+    cv2.line(frame, (center_x, center_y - 20), (center_x, center_y + 20), color, 2)
+
+    # Сохраняем обработанное фото
+    cv2.imwrite(output_path, frame)
+    print("🖼️ Фото обработано и сохранено")
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

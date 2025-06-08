@@ -30,19 +30,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // === Автообновление фото ===
   function checkForNewPhotos() {
-    fetch("/latest-photo")
+    fetch("/get_next_photo")
       .then(response => response.json())
       .then(data => {
         if (data.status === "success") {
           lastPhotoUrl = data.photo_url;
-          isWaitingForAction = true; // Ждём решения пользователя
+          isWaitingForAction = true;
           updatePhotoDisplay(lastPhotoUrl);
-          enableControls(); // Разрешаем нажатия
+          enableControls();
         } else {
           lastPhotoUrl = defaultPhotoUrl;
           isWaitingForAction = false;
           updatePhotoDisplay(defaultPhotoUrl);
-          disableControls(); // Блокируем выбор
+          disableControls();
         }
       })
       .catch(err => {
@@ -53,7 +53,9 @@ document.addEventListener('DOMContentLoaded', () => {
         disableControls();
       })
       .finally(() => {
-        setTimeout(checkForNewPhotos, 3000); // Каждые 3 секунды
+        if (!isWaitingForAction) {
+          setTimeout(checkForNewPhotos, 3000); // Только если ждём нового фото
+        }
       });
   }
 
@@ -102,6 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+
   // === Блокировка / разблокировка элементов ===
   function disableControls() {
     document.querySelectorAll('input[name="team-select"]').forEach(input => input.disabled = true);
@@ -131,7 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const number = document.querySelector('input[name="number-select"]:checked')?.value;
 
     if (!team || !number) {
-      alert("Выберите команду и номер участника");
+      alert("Выберите команду и номер игрока");
       return;
     }
 
@@ -141,19 +144,16 @@ document.addEventListener('DOMContentLoaded', () => {
     updateButtonStatus(button, isAlive);
     updateCounters(team, isAlive);
 
-    // Отправляем статус на сервер
+    // Отправка статуса на сервер
     fetch('/update_status', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ team, number, status: isAlive ? 'alive' : 'dead' })
     })
     .then(response => response.json())
-    .then(data => {
-      if (data.status === 'next-photo-available') {
-        fetchNextPhoto();
-      } else {
-        fetchNextPhoto(); // Если нет фото → download.png
-      }
+    .then(() => {
+      // Запрашиваем следующее фото после обработки
+      fetchNextPhoto();
     })
     .catch(err => {
       console.error("Ошибка отправки статуса:", err);
@@ -162,9 +162,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
 
-  // === Получение следующего фото ===
+  // === Получение следующего фото после действия ===
   function fetchNextPhoto() {
-    fetch("/latest-photo")
+    fetch("/get_next_photo")
       .then(response => response.json())
       .then(data => {
         if (data.status === "success") {

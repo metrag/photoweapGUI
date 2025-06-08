@@ -1,2 +1,6 @@
 flask
 requests
+opencv-python
+numpy
+ultralytics
+pillow

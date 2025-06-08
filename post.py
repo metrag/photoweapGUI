@@ -2,7 +2,7 @@ import requests
 
 # Настройки
 server_url = "http://localhost:5000/upload"  # Меняй на IP сервера, если он удалённый
-image_path = "test4.jpg"  # Путь к изображению
+image_path = "test/test3.jpg"  # Путь к изображению
 
 # Отправляем фото
 with open(image_path, "rb") as f:
