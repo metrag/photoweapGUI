@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>БОЙ</title>
   <link rel="stylesheet" href="/static/css/fight.css">
 </head>
@@ -36,7 +37,9 @@
   <!-- Центральная колонка -->
   <div class="column center-column">
     <div class="battle-field">
-      <img id="camera-feed" src="/latest.jpg" alt="Фото с камеры" style="width:100%; border-radius:10px;">
+      <!-- Изменено: добавлен скрытый input для начального фото и изменен img -->
+      <input type="hidden" id="initial-photo" value="{{ initial_photo or '' }}">
+      <img id="camera-feed" src="" alt="Фото с камеры" style="display: none; max-width: 100%;">
     </div>
 
     <div class="info-panel">
@@ -90,155 +93,16 @@
 
 </div>
 
-<!-- JS логика -->
-<script>
-  // === Получаем данные из шаблона как объекты ===
-  const members1 = [
-    {% if members1 %}
-      {% for member in members1 %}
-        { rank: "{{ member.rank | replace('"', '\\"') }}", name: "{{ member.name | replace('"', '\\"') }}" },
-      {% endfor %}
-    {% endif %}
-  ];
-
-  const members2 = [
-    {% if members2 %}
-      {% for member in members2 %}
-        { rank: "{{ member.rank | replace('"', '\\"') }}", name: "{{ member.name | replace('"', '\\"') }}" },
-      {% endfor %}
-    {% endif %}
-  ];
-
-  console.log("members1:", members1);
-  console.log("members2:", members2);
-
-  // === Переменные ===
-  const numberGroup = document.getElementById("number-radio-group");
-
-  // === Заполнение номеров по команде ===
-  function populateNumbers(team) {
-    numberGroup.innerHTML = ""; // Очистить старые
-
-    const list = team === "1" ? members1 : members2;
-
-    if (!list || list.length === 0) {
-      numberGroup.innerHTML = "<em>Нет участников</em>";
-      return;
-    }
-
-    list.forEach((member, index) => {
-      const num = index + 1;
-
-      const label = document.createElement("label");
-      label.style.marginRight = "15px";
-      label.innerHTML = `
-        <input type="radio" name="number-select" value="${num}" ${index === 0 ? 'checked' : ''}>
-        ${num}
-      `;
-      numberGroup.appendChild(label);
-    });
-  }
-
-  // === Обработчик изменения команды ===
-  document.querySelectorAll('input[name="team-select"]').forEach(radio => {
-    radio.addEventListener("change", function () {
-      const selectedTeam = this.value;
-      populateNumbers(selectedTeam);
-    });
-  });
-
-  // === Инициализация при загрузке ===
-  const initialTeamRadio = document.querySelector('input[name="team-select"]:checked');
-  if (initialTeamRadio) {
-    populateNumbers(initialTeamRadio.value);
-  } else {
-    numberGroup.innerHTML = "<em>Выберите команду</em>";
-  }
-
-  // === Кнопки статуса ===
-  const btnAlive = document.getElementById("btn-alive");
-  const btnDead = document.getElementById("btn-dead");
-
-  function updateMemberStatus(isAlive) {
-    const selectedTeam = document.querySelector('input[name="team-select"]:checked')?.value;
-    const selectedNumber = document.querySelector('input[name="number-select"]:checked')?.value;
-
-    if (!selectedTeam || !selectedNumber) {
-      alert("Выберите команду и номер игрока");
-      return;
-    }
-
-    // Определяем индекс колонки
-    const teamColumnIndex = selectedTeam === "1" ? 1 : 3;
-
-    // Находим нужную кнопку
-    const selector = `.column:nth-child(${teamColumnIndex}) .members-list button[data-number="${selectedNumber}"]`;
-    const statusButton = document.querySelector(selector);
-
-    if (!statusButton) {
-      console.warn("Не найден участник", selectedTeam, selectedNumber);
-      return;
-    }
-
-    // === Старый статус ===
-    const oldStatus = statusButton.getAttribute("data-status");
-
-    // === Обновляем статус ===
-    if (isAlive && oldStatus !== "alive") {
-      statusButton.setAttribute("data-status", "alive");
-      statusButton.classList.remove("inactive");
-      statusButton.classList.add("active");
-
-      updateCounters(teamColumnIndex, "alive");
-    } else if (!isAlive && oldStatus !== "dead") {
-      statusButton.setAttribute("data-status", "dead");
-      statusButton.classList.remove("active");
-      statusButton.classList.add("inactive");
-
-      updateCounters(teamColumnIndex, "dead");
-    }
-  }
-
-  btnAlive.addEventListener("click", () => {
-    updateMemberStatus(true);
-  });
-
-  btnDead.addEventListener("click", () => {
-    updateMemberStatus(false);
-  });
-
-
-  // === Функция подсчёта живых и мёртвых ===
-  function updateCounters(teamColumnIndex, newStatus) {
-    const column = document.querySelector(`.column:nth-child(${teamColumnIndex})`);
-    const aliveSpan = column.querySelector(".in-battle-count");
-    const deadSpan = column.querySelector(".killed-count");
-
-    const currentAlive = parseInt(aliveSpan.textContent);
-    const currentDead = parseInt(deadSpan.textContent);
-
-    if (newStatus === "dead") {
-      aliveSpan.textContent = currentAlive - 1;
-      deadSpan.textContent = currentDead + 1;
-    } else if (newStatus === "alive") {
-      aliveSpan.textContent = currentAlive + 1;
-      deadSpan.textContent = currentDead - 1;
-    }
-  }
-
-
-  // === Обновление фото ===
-  function updateImage() {
-    const img = document.getElementById('camera-feed');
-    if (img) {
-      img.src = '/latest.jpg?' + new Date().getTime(); // Антикэширование
-    }
-  }
-
-  setInterval(updateImage, 5000); // Каждые 5 секунд
-  window.addEventListener('load', updateImage);
-
+<!-- Передаем данные в JS -->
+<script id="members1-data" type="application/json">
+  {{ members1 | tojson | safe }}
 </script>
+<script id="members2-data" type="application/json">
+  {{ members2 | tojson | safe }}
+</script>
+
+<!-- Подключаем JS файл -->
+<script src="/static/js/fight.js"></script>
 
 </body>
 </html>
