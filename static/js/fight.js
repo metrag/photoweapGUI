@@ -1,5 +1,4 @@
 document.addEventListener('DOMContentLoaded', () => {
-  // === DOM элементы ===
   const teamRadios = document.querySelectorAll('input[name="team-select"]');
   const numberGroup = document.getElementById("number-radio-group");
   const btnAlive = document.getElementById("btn-alive");
@@ -13,10 +12,11 @@ document.addEventListener('DOMContentLoaded', () => {
   let lastPhotoUrl = null;
   let isWaitingForAction = false;
 
-  // === Заполняем номера участников ===
+  window.members1 = window.members1 || [];
+  window.members2 = window.members2 || [];
+
   populateNumbers(currentTeam);
 
-  // === Подписываемся на события ===
   teamRadios.forEach(radio => {
     radio.addEventListener("change", (e) => {
       currentTeam = e.target.value;
@@ -28,18 +28,17 @@ document.addEventListener('DOMContentLoaded', () => {
   btnDead.addEventListener("click", () => handleStatus(false));
 
 
-  // === Автообновление фото ===
-  function checkForNewPhotos() {
-    fetch("/get_next_photo")
+  function fetchNextPhoto() {
+    fetch("/latest-photo")
       .then(response => response.json())
       .then(data => {
         if (data.status === "success") {
-          lastPhotoUrl = data.photo_url;
+          lastPhotoUrl = data.photo_url + '?t=' + Date.now();
           isWaitingForAction = true;
           updatePhotoDisplay(lastPhotoUrl);
           enableControls();
         } else {
-          lastPhotoUrl = defaultPhotoUrl;
+          lastPhotoUrl = defaultPhotoUrl + '?t=' + Date.now();
           isWaitingForAction = false;
           updatePhotoDisplay(defaultPhotoUrl);
           disableControls();
@@ -47,31 +46,38 @@ document.addEventListener('DOMContentLoaded', () => {
       })
       .catch(err => {
         console.error("Ошибка получения фото:", err);
-        lastPhotoUrl = defaultPhotoUrl;
-        isWaitingForAction = false;
+        lastPhotoUrl = defaultPhotoUrl + '?t=' + Date.now();
         updatePhotoDisplay(defaultPhotoUrl);
         disableControls();
-      })
-      .finally(() => {
-        if (!isWaitingForAction) {
-          setTimeout(checkForNewPhotos, 3000); // Только если ждём нового фото
-        }
       });
   }
-
-  checkForNewPhotos(); // Стартуем автообновление
-
 
   // === Обновление фото в интерфейсе ===
   function updatePhotoDisplay(photoUrl) {
     if (!cameraFeed) return;
-
     cameraFeed.src = photoUrl;
     cameraFeed.style.display = 'block';
   }
 
+  // === Подписываемся на события обновления фото ===
+  function subscribeToPhotoUpdates() {
+    const eventSource = new EventSource("/photo-updated");
 
-  // === Получение данных о кнопке статуса ===
+    eventSource.onmessage = function(event) {
+      console.log("📷 Новое фото доступно", event.data);
+      fetchNextPhoto(); // Мгновенно запрашиваем новое фото
+    };
+
+    eventSource.onerror = function(err) {
+      console.error("⚠️ Ошибка SSE:", err);
+      setTimeout(() => subscribeToPhotoUpdates(), 5000); // Переподписываемся
+    };
+  }
+
+  subscribeToPhotoUpdates(); // Подписываемся на обновления
+  fetchNextPhoto(); // Запрашиваем начальное фото
+
+
   function getStatusButton(team, number) {
     const columnIndex = team === "1" ? 1 : 3;
     return document.querySelector(
@@ -104,8 +110,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-
-  // === Блокировка / разблокировка элементов ===
   function disableControls() {
     document.querySelectorAll('input[name="team-select"]').forEach(input => input.disabled = true);
     document.querySelectorAll('input[name="number-select"]').forEach(input => input.disabled = true);
@@ -124,17 +128,12 @@ document.addEventListener('DOMContentLoaded', () => {
     btnDead.classList.remove("disabled");
   }
 
-  // === Инициализация блокировки ===
-  disableControls();
-
-
-  // === Обработка нажатия "Жив"/"Убит" ===
   function handleStatus(isAlive) {
     const team = document.querySelector('input[name="team-select"]:checked')?.value;
     const number = document.querySelector('input[name="number-select"]:checked')?.value;
 
     if (!team || !number) {
-      alert("Выберите команду и номер игрока");
+      alert("Выберите команду и номер участника");
       return;
     }
 
@@ -144,7 +143,6 @@ document.addEventListener('DOMContentLoaded', () => {
     updateButtonStatus(button, isAlive);
     updateCounters(team, isAlive);
 
-    // Отправка статуса на сервер
     fetch('/update_status', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -152,44 +150,17 @@ document.addEventListener('DOMContentLoaded', () => {
     })
     .then(response => response.json())
     .then(() => {
-      // Запрашиваем следующее фото после обработки
-      fetchNextPhoto();
+      return fetch('/ack_photo', { method: 'POST' });
+    })
+    .then(() => {
+      fetchNextPhoto(); // Теперь снова download.png
     })
     .catch(err => {
-      console.error("Ошибка отправки статуса:", err);
+      console.error("Ошибка:", err);
       fetchNextPhoto();
     });
   }
 
-
-  // === Получение следующего фото после действия ===
-  function fetchNextPhoto() {
-    fetch("/get_next_photo")
-      .then(response => response.json())
-      .then(data => {
-        if (data.status === "success") {
-          lastPhotoUrl = data.photo_url;
-          isWaitingForAction = true;
-          updatePhotoDisplay(lastPhotoUrl);
-          enableControls();
-        } else {
-          lastPhotoUrl = defaultPhotoUrl;
-          isWaitingForAction = false;
-          updatePhotoDisplay(defaultPhotoUrl);
-          disableControls();
-        }
-      })
-      .catch(err => {
-        console.error("Ошибка получения фото:", err);
-        lastPhotoUrl = defaultPhotoUrl;
-        isWaitingForAction = false;
-        updatePhotoDisplay(defaultPhotoUrl);
-        disableControls();
-      });
-  }
-
-
-  // === Заполнение номеров игроков ===
   function populateNumbers(team) {
     numberGroup.innerHTML = "";
 
@@ -212,5 +183,25 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
       numberGroup.appendChild(label);
     });
+  }
+
+  disableControls();
+
+  function disableControls() {
+    document.querySelectorAll('input[name="team-select"]').forEach(input => input.disabled = true);
+    document.querySelectorAll('input[name="number-select"]').forEach(input => input.disabled = true);
+    btnAlive.disabled = true;
+    btnDead.disabled = true;
+    btnAlive.classList.add("disabled");
+    btnDead.classList.add("disabled");
+  }
+
+  function enableControls() {
+    document.querySelectorAll('input[name="team-select"]').forEach(input => input.disabled = false);
+    document.querySelectorAll('input[name="number-select"]').forEach(input => input.disabled = false);
+    btnAlive.disabled = false;
+    btnDead.disabled = false;
+    btnAlive.classList.remove("disabled");
+    btnDead.classList.remove("disabled");
   }
 });

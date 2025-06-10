@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, send_from_directory, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, send_from_directory, jsonify, Response
 import os
 import time
 import cv2
@@ -13,11 +13,12 @@ os.makedirs(app.config['PROCESSED_FOLDER'], exist_ok=True)
 app.secret_key = 'supersecretkey'
 
 # === Загрузка модели YOLO ===
-model = YOLO("yolov8s.pt")  # Скачается при первом запуске
-CLASS_HUMAN = 0  # В YOLO класс человека — это 0
+model = YOLO("yolov8s.pt")  # Скачается автоматически
+CLASS_HUMAN = 0  # класс человека в YOLO
 
-# === Храним список обработанных файлов ===
-processed_files = []
+
+# === Храним последнее время изменения файла ===
+last_processed_time = None
 
 @app.route('/')
 def index():
@@ -44,7 +45,7 @@ def start():
         j = 1
         while True:
             rank = request.form.get(f'member2_rank_{j}')
-            name = request.form.get(f'member2_name_{j}')
+            name = request.form.get(f'member2_name_${j}')
             if not rank and not name:
                 break
             members2.append({'rank': rank or '', 'name': name or ''})
@@ -81,36 +82,51 @@ def upload_image():
         return jsonify({'status': 'error', 'message': 'Неверные данные'}), 400
 
     try:
-        timestamp = int(time.time())
-        raw_path = os.path.join(app.config['UPLOAD_FOLDER'], f'latest.jpg')  # Сохраняем как latest.jpg
-        processed_path = os.path.join(app.config['PROCESSED_FOLDER'], f'latest_processed_{timestamp}.jpg')
+        raw_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest.jpg')
+        processed_path = os.path.join(app.config['PROCESSED_FOLDER'], 'latest_processed.jpg')
 
         with open(raw_path, 'wb') as f:
             f.write(request.data)
 
-        # Обработка фото
-        process_and_save_image(raw_path, processed_path)
+        found_human = process_and_save_image(raw_path, processed_path)
 
-        # Добавляем в очередь обработанных
-        processed_files.insert(0, f'latest_processed_{timestamp}.jpg')
+        global last_processed_time
+        last_processed_time = int(time.time())
 
-        print("✅ Фото сохранено и обработано")
-        return jsonify({'status': 'success'}), 200
+        if found_human:
+            print("✅ Фото обработано")
+            return jsonify({
+                'status': 'success',
+                'photo_url': '/latest.jpg'
+            }), 200
+        else:
+            print("🚫 Человека нет на фото")
+            return jsonify({
+                'status': 'no-human',
+                'photo_url': '/static/img/download.png'
+            }), 200
 
     except Exception as e:
         print("❌ Ошибка:", str(e))
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
-@app.route('/get_next_photo')
-def get_next_photo():
-    """Возвращает последнее обработанное фото или download.png"""
-    if len(processed_files) > 0:
-        filename = processed_files.pop(0)
-        photo_url = f'/processed/{filename}'
+@app.route('/latest.jpg')
+def get_latest_processed_photo():
+    processed_path = os.path.join(app.config['PROCESSED_FOLDER'], 'latest_processed.jpg')
+    if os.path.exists(processed_path):
+        return send_from_directory(app.config['PROCESSED_FOLDER'], 'latest_processed.jpg', mimetype='image/jpeg')
+    else:
+        return send_from_directory('static/img/', 'download.png')
+
+
+@app.route('/latest-photo')
+def latest_photo():
+    processed_path = os.path.join(app.config['PROCESSED_FOLDER'], 'latest_processed.jpg')
+    if os.path.exists(processed_path):
         return jsonify({
             'status': 'success',
-            'photo_url': photo_url + '?t=' + str(int(time.time()))
+            'photo_url': '/latest.jpg'
         })
     else:
         return jsonify({
@@ -119,9 +135,14 @@ def get_next_photo():
         })
 
 
-@app.route('/processed/<filename>')
-def serve_processed(filename):
-    return send_from_directory(app.config['PROCESSED_FOLDER'], filename)
+@app.route('/ack_photo', methods=['POST'])
+def ack_photo():
+    """Подтверждение получения фото от клиента"""
+    processed_path = os.path.join(app.config['PROCESSED_FOLDER'], 'latest_processed.jpg')
+    if os.path.exists(processed_path):
+        os.remove(processed_path)
+        print("🗑 Фото удалено после вывода")
+    return jsonify({'status': 'ok'})
 
 
 @app.route('/update_status', methods=['POST'])
@@ -136,14 +157,35 @@ def update_status():
     return jsonify({'status': 'ok'})
 
 
+@app.route('/photo-updated')
+def photo_updated():
+    def generate():
+        old_mtime = None
+        while True:
+            processed_path = os.path.join(app.config['PROCESSED_FOLDER'], 'latest_processed.jpg')
+            current_mtime = os.path.getmtime(processed_path) if os.path.exists(processed_path) else None
+
+            if current_mtime != old_mtime and os.path.exists(processed_path):
+                yield f"data: {int(time.time())}\n\n"
+                old_mtime = current_mtime
+
+            time.sleep(0.5)  # Проверяем часто, но не нагружаем систему
+
+    return Response(generate(), mimetype='text/event-stream')
+
+
 def process_and_save_image(input_path, output_path):
     frame = cv2.imread(input_path)
+    if frame is None:
+        print("❌ Не удалось загрузить кадр")
+        return False
+
     h, w, _ = frame.shape
     center_x, center_y = w // 2, h // 2
 
     results = model(input_path, verbose=False)
 
-    hit = False
+    found_human = False
 
     for r in results:
         boxes = r.boxes
@@ -159,19 +201,19 @@ def process_and_save_image(input_path, output_path):
             # Рисуем чёрную рамку вокруг человека
             cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 0), 3)
 
-            # Проверяем, находится ли человек в центре
-            if abs(cx - center_x) < 50 and abs(cy - center_y) < 50:
-                hit = True  # Человек поражён
+            # Прицел в центре кадра
+            color = (0, 0, 255) if abs(cx - center_x) < 50 and abs(cy - center_y) < 50 else (128, 128, 128)
+            cv2.line(frame, (center_x - 20, center_y), (center_x + 20, center_y), color, 2)
+            cv2.line(frame, (center_x, center_y - 20), (center_x, center_y + 20), color, 2)
 
-    # === Рисуем крест-прицел: красный или серый ===
-    color = (0, 0, 255) if hit else (128, 128, 128)
+            found_human = True
 
-    cv2.line(frame, (center_x - 20, center_y), (center_x + 20, center_y), color, 2)
-    cv2.line(frame, (center_x, center_y - 20), (center_x, center_y + 20), color, 2)
+    if found_human:
+        cv2.imwrite(output_path, frame)
+        print("🖼️ Фото сохранено")
 
-    # Сохраняем обработанное фото
-    cv2.imwrite(output_path, frame)
-    print("🖼️ Фото обработано и сохранено")
+    return found_human
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
