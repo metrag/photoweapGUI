@@ -131,18 +131,19 @@ document.addEventListener('DOMContentLoaded', () => {
   function handleStatus(isAlive) {
     const team = document.querySelector('input[name="team-select"]:checked')?.value;
     const number = document.querySelector('input[name="number-select"]:checked')?.value;
-
+  
     if (!team || !number) {
       alert("Выберите команду и номер участника");
       return;
     }
-
+  
     const button = getStatusButton(team, number);
     if (!button) return;
-
+  
     updateButtonStatus(button, isAlive);
     updateCounters(team, isAlive);
-
+  
+    // Отправляем статус на сервер
     fetch('/update_status', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -150,10 +151,11 @@ document.addEventListener('DOMContentLoaded', () => {
     })
     .then(response => response.json())
     .then(() => {
+      // Уведомляем сервер о том, что фото использовано
       return fetch('/ack_photo', { method: 'POST' });
     })
     .then(() => {
-      fetchNextPhoto(); // Теперь снова download.png
+      fetchNextPhoto(); // Запрашиваем следующее фото (может быть download.png)
     })
     .catch(err => {
       console.error("Ошибка:", err);

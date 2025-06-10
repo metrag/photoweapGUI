@@ -137,7 +137,7 @@ def latest_photo():
 
 @app.route('/ack_photo', methods=['POST'])
 def ack_photo():
-    """Подтверждение получения фото от клиента"""
+    """Клиент подтверждает, что получил фото → сервер удаляет его"""
     processed_path = os.path.join(app.config['PROCESSED_FOLDER'], 'latest_processed.jpg')
     if os.path.exists(processed_path):
         os.remove(processed_path)
