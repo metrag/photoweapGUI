@@ -175,22 +175,27 @@ def photo_updated():
 
 
 def process_and_save_image(input_path, output_path):
+    # Загрузка изображения
     frame = cv2.imread(input_path)
     if frame is None:
         print("❌ Не удалось загрузить кадр")
         return False
 
+    # Поворачиваем изображение на 90 градусов ПО ЧАСОВОЙ стрелке
+    frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
+
     h, w, _ = frame.shape
     center_x, center_y = w // 2, h // 2
 
-    results = model(input_path, verbose=False)
+    # Обработка модели (YOLO) с повернутым изображением
+    results = model(frame, verbose=False)
 
     found_human = False
 
     for r in results:
         boxes = r.boxes
         for box in boxes:
-            if int(box.cls) != CLASS_HUMAN:
+            if int(box.cls) != CLASS_HUMAN:  # Убедись, что CLASS_HUMAN определена
                 continue
 
             b = box.xyxy[0].tolist()
@@ -209,8 +214,9 @@ def process_and_save_image(input_path, output_path):
             found_human = True
 
     if found_human:
+        # Сохраняем уже повернутое изображение с разметкой
         cv2.imwrite(output_path, frame)
-        print("🖼️ Фото сохранено")
+        print("🖼️ Фото сохранено (уже повернутое)")
 
     return found_human
 

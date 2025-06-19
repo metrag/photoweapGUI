@@ -114,6 +114,24 @@
   ];
 </script>
 
+<script>
+  // Подписка на обновления фото
+  const eventSource = new EventSource("/photo-updated");
+
+  eventSource.onmessage = function(event) {
+    console.log("📷 Новое фото готово!");
+    fetchNextPhoto(); // Запрашиваем немедленно
+  };
+
+  eventSource.onerror = function(err) {
+    console.error("⚠️ Ошибка SSE:", err);
+    setTimeout(() => location.reload(), 10000); // Через 10 секунд — перезапуск
+  };
+</script>
+
+<script src="/static/js/fight.js"></script>
+
+
 <!-- Подключение JS -->
 <script src="/static/js/fight.js"></script>
 
